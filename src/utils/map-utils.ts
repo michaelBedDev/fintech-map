@@ -63,14 +63,28 @@ export function getFallbackAvatar(seed: string): string {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed || "default")}`;
 }
 
+export function getSafeAvatarUrl(avatarUrl: string | null, name: string): string {
+  if (!avatarUrl) return getFallbackAvatar(name);
+
+  const isCached = avatarUrl.includes("/storage/v1/object/public/avatars/");
+  const isDicebear = avatarUrl.includes("dicebear.com");
+
+  if (isCached || isDicebear) {
+    return avatarUrl;
+  }
+
+  return getFallbackAvatar(name);
+}
+
 export function createAvatarIcon(
   avatarUrl: string | null,
   name: string,
   size = 28,
 ): L.DivIcon {
   const safeName = escapeHtml(name || "?");
+  const safeAvatarUrl = getSafeAvatarUrl(avatarUrl, name);
   const fallbackUrl = getFallbackAvatar(name);
-  const html = `<img src="${escapeHtml(avatarUrl || fallbackUrl)}" alt="${safeName}" class="avatar-marker" style="width:${size}px;height:${size}px;" onerror="this.onerror=null;this.src='${fallbackUrl}';" />`;
+  const html = `<img src="${escapeHtml(safeAvatarUrl)}" alt="${safeName}" class="avatar-marker" style="width:${size}px;height:${size}px;" onerror="this.onerror=null;this.src='${fallbackUrl}';" />`;
 
   return L.divIcon({
     html,

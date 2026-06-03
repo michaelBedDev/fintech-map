@@ -5,6 +5,8 @@ import {
   escapeHtml,
   createAvatarIcon,
   MAP_STYLES,
+  getSafeAvatarUrl,
+  getFallbackAvatar,
 } from "@/utils/map-utils";
 import type { Feature, Geometry } from "geojson";
 import L from "leaflet";
@@ -68,3 +70,31 @@ describe("createAvatarIcon", () => {
     expect(icon).toBeDefined();
   });
 });
+
+describe("getSafeAvatarUrl & getFallbackAvatar", () => {
+  it("should return fallback Dicebear URL if avatarUrl is null or empty", () => {
+    const fallback = getFallbackAvatar("Carlos");
+    expect(fallback).toContain("api.dicebear.com");
+    expect(fallback).toContain("Carlos");
+  });
+
+  it("should return the exact same URL if it is a cached Supabase URL", () => {
+    const cachedUrl = "https://xyz.supabase.co/storage/v1/object/public/avatars/u123/avatar.jpg";
+    const result = getSafeAvatarUrl(cachedUrl, "Carlos");
+    expect(result).toBe(cachedUrl);
+  });
+
+  it("should return the exact same URL if it is a Dicebear URL", () => {
+    const dicebearUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=carlos";
+    const result = getSafeAvatarUrl(dicebearUrl, "Carlos");
+    expect(result).toBe(dicebearUrl);
+  });
+
+  it("should fallback to Dicebear URL if it is an external uncached URL (e.g. Twitter)", () => {
+    const twitterUrl = "https://pbs.twimg.com/profile_images/123/avatar.jpg";
+    const result = getSafeAvatarUrl(twitterUrl, "Carlos");
+    expect(result).toContain("api.dicebear.com");
+    expect(result).toContain("Carlos");
+  });
+});
+

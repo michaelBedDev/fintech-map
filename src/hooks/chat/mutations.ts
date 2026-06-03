@@ -1,14 +1,18 @@
 import { ChatService } from "@/services/chatService";
 import type { SendMessagePayload } from "@/types/DTOs/dtos";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { chatKeys } from "./queries";
 import { toast } from "sonner";
 
 /**
  * Hook to send messages.
  * We rely on the Realtime subscription in useChatMessages
- * to update the UI once the database confirms the insert.
+ * but also invalidate the query cache on success to ensure
+ * instantaneous local updates ("en caliente").
  */
 export function useSendMessage() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (payload: SendMessagePayload) => {
       const result = await ChatService.sendChatMessage(payload);
@@ -18,6 +22,14 @@ export function useSendMessage() {
       }
 
       return result;
+    },
+
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: variables.provinciaId
+          ? chatKeys.province(variables.provinciaId)
+          : chatKeys.global(),
+      });
     },
 
     onError: (err) => {
