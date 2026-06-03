@@ -64,16 +64,7 @@ export function getFallbackAvatar(seed: string): string {
 }
 
 export function getSafeAvatarUrl(avatarUrl: string | null, name: string): string {
-  if (!avatarUrl) return getFallbackAvatar(name);
-
-  const isCached = avatarUrl.includes("/storage/v1/object/public/avatars/");
-  const isDicebear = avatarUrl.includes("dicebear.com");
-
-  if (isCached || isDicebear) {
-    return avatarUrl;
-  }
-
-  return getFallbackAvatar(name);
+  return avatarUrl || getFallbackAvatar(name);
 }
 
 export function createAvatarIcon(

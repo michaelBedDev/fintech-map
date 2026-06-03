@@ -90,11 +90,10 @@ describe("getSafeAvatarUrl & getFallbackAvatar", () => {
     expect(result).toBe(dicebearUrl);
   });
 
-  it("should fallback to Dicebear URL if it is an external uncached URL (e.g. Twitter)", () => {
+  it("should return the exact same URL if it is an external URL (e.g. Twitter)", () => {
     const twitterUrl = "https://pbs.twimg.com/profile_images/123/avatar.jpg";
     const result = getSafeAvatarUrl(twitterUrl, "Carlos");
-    expect(result).toContain("api.dicebear.com");
-    expect(result).toContain("Carlos");
+    expect(result).toBe(twitterUrl);
   });
 });
 
