@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ProfileWithProvince } from "@/types/DTOs/dtos";
+import { getFallbackAvatar } from "@/utils/map-utils";
 
 interface MapOverlayProps {
   provinceName: string | null;
@@ -35,8 +36,8 @@ export function MapOverlay({ provinceName, profiles }: MapOverlayProps) {
                     <TooltipTrigger asChild>
                       <Avatar className='h-7 w-7 border border-border group-hover:border-primary/50 transition-colors'>
                         <AvatarImage src={profile.avatar_url ?? undefined} />
-                        <AvatarFallback className='text-[10px] bg-muted'>
-                          {(profile.full_name ?? "?").charAt(0).toUpperCase()}
+                        <AvatarFallback className='text-[10px] bg-muted p-0'>
+                          <img src={getFallbackAvatar(profile.full_name || "")} className='h-full w-full object-cover rounded-full' alt='default' />
                         </AvatarFallback>
                       </Avatar>
                     </TooltipTrigger>

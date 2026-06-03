@@ -59,16 +59,18 @@ export function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+export function getFallbackAvatar(seed: string): string {
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed || "default")}`;
+}
+
 export function createAvatarIcon(
   avatarUrl: string | null,
   name: string,
   size = 28,
 ): L.DivIcon {
   const safeName = escapeHtml(name || "?");
-  const initial = safeName.charAt(0).toUpperCase();
-  const html = avatarUrl
-    ? `<img src="${escapeHtml(avatarUrl)}" alt="${safeName}" class="avatar-marker" style="width:${size}px;height:${size}px;" />`
-    : `<div class="avatar-marker avatar-fallback" style="width:${size}px;height:${size}px;font-size:${size * 0.4}px;">${initial}</div>`;
+  const fallbackUrl = getFallbackAvatar(name);
+  const html = `<img src="${escapeHtml(avatarUrl || fallbackUrl)}" alt="${safeName}" class="avatar-marker" style="width:${size}px;height:${size}px;" onerror="this.onerror=null;this.src='${fallbackUrl}';" />`;
 
   return L.divIcon({
     html,

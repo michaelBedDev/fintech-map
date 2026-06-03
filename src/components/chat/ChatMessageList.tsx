@@ -4,6 +4,7 @@ import { useChat } from "@/contexts/ChatContext";
 import { useChatScroll } from "@/hooks/chat/useChatScroll";
 import { formatTime } from "@/utils/formatters";
 import { cn } from "@/lib/utils";
+import { getFallbackAvatar } from "@/utils/map-utils";
 import type { ChatMessage } from "@/types/DTOs/dtos";
 
 export function ChatMessageList() {
@@ -45,12 +46,13 @@ function EmptyState() {
 }
 
 function MessageItem({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
+  const authorName = msg.profiles?.full_name || "?";
   return (
     <div className={cn("flex gap-2", isOwn && "flex-row-reverse")}>
       <Avatar className='h-6 w-6 shrink-0 mt-0.5'>
         <AvatarImage src={msg.profiles?.avatar_url ?? undefined} />
-        <AvatarFallback className='text-[10px]'>
-          {(msg.profiles?.full_name ?? "?").charAt(0).toUpperCase()}
+        <AvatarFallback className='text-[10px] p-0'>
+          <img src={getFallbackAvatar(authorName)} className='h-full w-full object-cover rounded-full' alt='default' />
         </AvatarFallback>
       </Avatar>
 
