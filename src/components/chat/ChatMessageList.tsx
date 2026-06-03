@@ -4,7 +4,7 @@ import { useChat } from "@/contexts/ChatContext";
 import { useChatScroll } from "@/hooks/chat/useChatScroll";
 import { formatTime } from "@/utils/formatters";
 import { cn } from "@/lib/utils";
-import { getFallbackAvatar, getSafeAvatarUrl } from "@/utils/map-utils";
+import { getFallbackAvatar } from "@/utils/map-utils";
 import type { ChatMessage } from "@/types/DTOs/dtos";
 
 export function ChatMessageList() {
@@ -50,10 +50,16 @@ function MessageItem({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
   return (
     <div className={cn("flex gap-2", isOwn && "flex-row-reverse")}>
       <Avatar className='h-6 w-6 shrink-0 mt-0.5'>
-        <AvatarImage src={getSafeAvatarUrl(msg.profiles?.avatar_url || null, authorName)} />
-        <AvatarFallback className='text-[10px] p-0' delayMs={600}>
-          <img src={getFallbackAvatar(authorName)} className='h-full w-full object-cover rounded-full' alt='default' />
-        </AvatarFallback>
+        {msg.profiles?.avatar_url ? (
+          <>
+            <AvatarImage src={msg.profiles.avatar_url} />
+            <AvatarFallback className='text-[10px] p-0' delayMs={600}>
+              <img src={getFallbackAvatar(authorName)} className='h-full w-full object-cover rounded-full' alt='default' />
+            </AvatarFallback>
+          </>
+        ) : (
+          <img src={getFallbackAvatar(authorName)} className='h-full w-full object-cover rounded-full' alt={authorName} />
+        )}
       </Avatar>
 
       <div
