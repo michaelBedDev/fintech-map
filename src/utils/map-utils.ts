@@ -59,8 +59,19 @@ export function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+const FALLBACK_COLORS = [
+  '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899',
+  '#f43f5e', '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#14b8a6', '#06b6d4', '#3b82f6', '#2563eb',
+] as const;
+
 export function getFallbackAvatar(seed: string): string {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed || "default")}`;
+  const safeSeed = seed || "default";
+  const hash = safeSeed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const color = FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
+  const initial = safeSeed.charAt(0).toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="${color}"/><text x="50" y="50" text-anchor="middle" dy=".36em" fill="#fff" font-size="42" font-family="system-ui,sans-serif" font-weight="600">${initial}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 export function getSafeAvatarUrl(avatarUrl: string | null, name: string): string {

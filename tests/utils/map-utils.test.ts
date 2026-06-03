@@ -72,10 +72,11 @@ describe("createAvatarIcon", () => {
 });
 
 describe("getSafeAvatarUrl & getFallbackAvatar", () => {
-  it("should return fallback Dicebear URL if avatarUrl is null or empty", () => {
+  it("should return an inline data URI SVG (not an external URL) to avoid loading flicker", () => {
     const fallback = getFallbackAvatar("Carlos");
-    expect(fallback).toContain("api.dicebear.com");
-    expect(fallback).toContain("Carlos");
+    // Must be a data URI so the browser decodes it synchronously — no network, no flash
+    expect(fallback).toMatch(/^data:image\/svg\+xml,/);
+    expect(fallback).toContain("C"); // first initial
   });
 
   it("should return the exact same URL if it is a cached Supabase URL", () => {
@@ -84,7 +85,7 @@ describe("getSafeAvatarUrl & getFallbackAvatar", () => {
     expect(result).toBe(cachedUrl);
   });
 
-  it("should return the exact same URL if it is a Dicebear URL", () => {
+  it("should return the exact same URL if it is a Dicebear URL stored in DB", () => {
     const dicebearUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=carlos";
     const result = getSafeAvatarUrl(dicebearUrl, "Carlos");
     expect(result).toBe(dicebearUrl);
@@ -96,28 +97,34 @@ describe("getSafeAvatarUrl & getFallbackAvatar", () => {
     expect(result).toBe(twitterUrl);
   });
 
-  it("should return a Dicebear fallback URL (not null/undefined) when avatar_url is null", () => {
-    // IMPORTANT: This Dicebear URL must NOT be passed to Radix AvatarImage.
-    // Radix internally creates new Image() and checks image.complete synchronously.
-    // Dicebear SVGs from an external API don't resolve synchronously, causing
-    // a 1-2 frame gap where neither AvatarImage nor AvatarFallback renders.
-    // Instead, render it as a plain <img> bypassing the Radix state machine.
+  it("should return a data URI fallback (not null/undefined) when avatar_url is null", () => {
     const result = getSafeAvatarUrl(null, "Carlos");
-    expect(result).toContain("api.dicebear.com");
-    expect(result).toContain("Carlos");
+    expect(result).toMatch(/^data:image\/svg\+xml,/);
     expect(result).not.toBeNull();
     expect(result).not.toBeUndefined();
   });
 
-  it("should return a Dicebear fallback URL when avatar_url is empty string", () => {
+  it("should return a data URI fallback when avatar_url is empty string", () => {
     const result = getSafeAvatarUrl("", "Elena");
-    expect(result).toContain("api.dicebear.com");
-    expect(result).toContain("Elena");
+    expect(result).toMatch(/^data:image\/svg\+xml,/);
   });
 
-  it("should return a stable fallback URL for the same seed to enable browser caching", () => {
+  it("should return a stable fallback URL for the same seed (deterministic)", () => {
     const url1 = getFallbackAvatar("Miguel");
     const url2 = getFallbackAvatar("Miguel");
     expect(url1).toBe(url2);
+  });
+
+  it("should return different colors for different seeds", () => {
+    const url1 = getFallbackAvatar("Ana");
+    const url2 = getFallbackAvatar("Zoe");
+    // Different names should produce different SVGs (different color at minimum)
+    expect(url1).not.toBe(url2);
+  });
+
+  it("should use 'default' seed when given empty string", () => {
+    const result = getFallbackAvatar("");
+    expect(result).toMatch(/^data:image\/svg\+xml,/);
+    expect(result).toContain("D"); // "Default" -> "D"
   });
 });
