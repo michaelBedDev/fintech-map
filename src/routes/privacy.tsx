@@ -53,11 +53,6 @@ function PrivacyPage() {
               <strong className='text-foreground'>Datos de Preferencias:</strong> La
               provincia que selecciones manualmente dentro de la aplicación.
             </li>
-            {/* <li>
-              <strong className='text-foreground'>Correo electrónico:</strong> Solo
-              si has autorizado a X para compartirlo con nosotros (utilizado
-              únicamente para la gestión de la cuenta).
-            </li> */}
           </ul>
         </section>
 

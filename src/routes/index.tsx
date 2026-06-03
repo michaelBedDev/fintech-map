@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/auth/supabaseClient";
+import { useState, useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/services/auth/supabaseClient";
+import { useAuthSession } from "@/hooks/auth/queries";
 import { Header } from "@/components/Header";
-import { SpainMap } from "@/components/SpainMap";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -16,120 +17,128 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import {
-  fetchAllProfiles,
-  fetchProvinciaIdByName,
-  setUserProvince,
-  type ProfileWithProvince,
-} from "@/lib/db";
+
+// 1. IMPORTS CORREGIDOS
+import { LocationService } from "@/services/locationService"; // Importamos el service para el fetch manual
+import { useProfiles } from "@/hooks/profiles/queries";
+import { useUpdateProvince, useUpdateMarker } from "@/hooks/profiles/mutations"; // Ambos hooks de mutación
+import { SelectedMap } from "@/components/SelectedMap";
 
 export const Route = createFileRoute("/")({ component: App });
 
 function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [profiles, setProfiles] = useState<ProfileWithProvince[]>([]);
-  const [myProvince, setMyProvince] = useState<string | null>(null);
+  const { data: sessionData, isLoading: authLoading } = useAuthSession();
+  const session = sessionData ?? null;
+  const queryClient = useQueryClient();
 
-  // Confirmation dialog state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingProvince, setPendingProvince] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
-  // Auth listener
+  // 2. HOOKS DE SERVIDOR (Siempre en la raíz)
+  const { data: profiles = [] } = useProfiles();
+
+  // Extraemos las funciones de mutación y su estado de carga
+  const { mutate: updateProvince, isPending: savingProvince } = useUpdateProvince();
+  const { mutate: updateMarker, isPending: savingMarker } = useUpdateMarker();
+
+  // 3. DERIVACIÓN (Sustituye a los mil estados y useEffects)
+  const myProfile = profiles.find((p) => p.id === session?.user?.id);
+  const myProvince = myProfile?.provincias?.nombre ?? null;
+  const myProvinciaId = myProfile?.provincia_id ?? null;
+
+  // El estado 'saving' ahora es la suma de cualquiera de nuestras mutaciones
+  const isSaving = savingProvince || savingMarker;
+
+  // Guardar avatar de X en bucket de Supabase si es externo
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    if (!session?.user?.id || !myProfile) return;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    const currentAvatar = myProfile.avatar_url;
+    const isExternal = currentAvatar && !currentAvatar.includes("/storage/v1/object/public/avatars/");
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Load all profiles (public)
-  const loadProfiles = useCallback(async () => {
-    const data = await fetchAllProfiles();
-    setProfiles(data);
-
-    // Find current user's province
-    if (session?.user?.id) {
-      const mine = data.find((p) => p.id === session.user.id);
-      setMyProvince(mine?.provincias?.nombre ?? null);
+    if (isExternal) {
+      supabase.functions.invoke("cache-avatar", {
+        body: { userId: session.user.id, imageUrl: session.user.user_metadata.avatar_url },
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error("Error cacheando avatar:", error);
+        } else if (data?.success) {
+          queryClient.invalidateQueries({ queryKey: ["profiles"] });
+        }
+      });
     }
-  }, [session]);
+  }, [session, myProfile, queryClient]);
 
-  useEffect(() => {
-    loadProfiles();
-  }, [loadProfiles]);
-
-  // Province click handler
+  // Handlers
   const handleProvinceSelect = useCallback(
     (provinceName: string) => {
       if (!session) {
         toast.error("Inicia sesión para seleccionar tu provincia");
         return;
       }
-
-      // If clicking the same province they're already in
       if (provinceName === myProvince) {
         toast.info("Ya estás en esta provincia");
         return;
       }
-
       setPendingProvince(provinceName);
       setConfirmOpen(true);
     },
     [session, myProvince],
   );
 
-  // Confirm province change
   const handleConfirmProvince = useCallback(async () => {
     if (!session?.user?.id || !pendingProvince) return;
 
-    setSaving(true);
-    const provinciaId = await fetchProvinciaIdByName(pendingProvince);
+    // Usamos el SERVICE para obtener el ID (no un hook)
+    const provinciaId =
+      await LocationService.fetchProvinciaIdByName(pendingProvince);
 
     if (!provinciaId) {
-      toast.error(
-        `No se encontró la provincia "${pendingProvince}" en la base de datos`,
-      );
-      setSaving(false);
+      toast.error(`No se encontró la provincia "${pendingProvince}"`);
       setConfirmOpen(false);
       return;
     }
 
-    const result = await setUserProvince(session.user.id, provinciaId);
+    // Ejecutamos la mutación
+    updateProvince(
+      { userId: session.user.id, provinciaId },
+      {
+        onSuccess: () => {
+          toast.success(`Te has ubicado en ${pendingProvince}`);
+          setConfirmOpen(false);
+          setPendingProvince(null);
+        },
+        onError: (error) => {
+          toast.error(`Error: ${error.message}`);
+        },
+      },
+    );
+  }, [session, pendingProvince, updateProvince]);
 
-    if (result.success) {
-      setMyProvince(pendingProvince);
-      toast.success(`Te has ubicado en ${pendingProvince}`);
-      await loadProfiles(); // Refresh all
-    } else {
-      toast.error(`Error: ${result.error}`);
-    }
+  const handleMarkerDrag = useCallback(
+    (lat: number, lng: number) => {
+      if (!session?.user?.id) return;
 
-    setSaving(false);
-    setConfirmOpen(false);
-    setPendingProvince(null);
-  }, [session, pendingProvince, loadProfiles]);
+      updateMarker({
+        userId: session.user.id,
+        lat,
+        lng,
+      });
+    },
+    [session, updateMarker],
+  );
 
-  if (loading) {
+  if (authLoading) {
     return (
-      <div className='min-h-screen bg-background flex items-center justify-center'>
+      <div className='h-screen bg-background flex items-center justify-center'>
         <p className='text-muted-foreground text-lg'>Cargando...</p>
       </div>
     );
   }
 
   return (
-    <div className='min-h-screen bg-background flex flex-col'>
-      <Header session={session} />
+    <div className='h-screen bg-background flex flex-col overflow-hidden'>
+      <Header />
 
       <main className='flex-1 relative'>
         {myProvince && (
@@ -140,27 +149,35 @@ function App() {
           </div>
         )}
 
-        <SpainMap
+        <SelectedMap
           selectedProvince={myProvince}
           onProvinceSelect={handleProvinceSelect}
           profiles={profiles}
           dialogOpen={confirmOpen}
+          currentUserId={session?.user?.id ?? null}
+          onMarkerDrag={handleMarkerDrag}
         />
+
+        {myProvinciaId && myProvince && (
+          <ChatPanel
+            provinciaId={myProvinciaId}
+            provinciaName={myProvince}
+            session={session}
+          />
+        )}
       </main>
 
-      {/* Footer */}
-      <footer className='absolute bottom-1 left-2 map-overlay flex items-center gap-3'>
+      <footer className='flex items-center justify-center gap-3 py-1 sm:absolute sm:bottom-1 sm:left-1/2 sm:-translate-x-1/2 sm:py-0 map-overlay pointer-events-auto'>
         <p className='text-[10px] text-muted-foreground/50'>
           Hecho por MichaelBed con ❤️
         </p>
         <Link
           to='/privacy'
-          className='text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors underline underline-offset-2'>
+          className='text-[10px] text-muted-foreground/50 hover:text-muted-foreground underline underline-offset-2'>
           Política de Privacidad
         </Link>
       </footer>
 
-      {/* Confirmation dialog */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -174,9 +191,9 @@ function App() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmProvince} disabled={saving}>
-              {saving ? "Guardando..." : "Confirmar"}
+            <AlertDialogCancel disabled={isSaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmProvince} disabled={isSaving}>
+              {isSaving ? "Guardando..." : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

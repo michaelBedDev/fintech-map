@@ -1,1 +1,40 @@
-INSERT INTO "public"."provincias" ("id", "nombre", "codigo_ine", "comunidad_autonoma") VALUES ('1', 'A Coruña', '15', 'Galicia'), ('2', 'Alacant/Alicante', '03', 'Comunidad Valenciana'), ('3', 'Albacete', '02', 'Castilla-La Mancha'), ('4', 'Almería', '04', 'Andalucía'), ('5', 'Araba/Álava', '01', 'País Vasco'), ('6', 'Asturias', '33', 'Asturias'), ('7', 'Badajoz', '06', 'Extremadura'), ('8', 'Barcelona', '08', 'Cataluña'), ('9', 'Bizkaia/Vizcaya', '48', 'País Vasco'), ('10', 'Burgos', '09', 'Castilla y León'), ('11', 'Cantabria', '39', 'Cantabria'), ('12', 'Castelló/Castellón', '12', 'Comunidad Valenciana'), ('13', 'Ceuta', '51', 'Ceuta'), ('14', 'Ciudad Real', '13', 'Castilla-La Mancha'), ('15', 'Cuenca', '16', 'Castilla-La Mancha'), ('16', 'Cáceres', '10', 'Extremadura'), ('17', 'Cádiz', '11', 'Andalucía'), ('18', 'Córdoba', '14', 'Andalucía'), ('19', 'Gipuzkoa/Guipúzcoa', '20', 'País Vasco'), ('20', 'Girona', '17', 'Cataluña'), ('21', 'Granada', '18', 'Andalucía'), ('22', 'Guadalajara', '19', 'Castilla-La Mancha'), ('23', 'Huelva', '21', 'Andalucía'), ('24', 'Huesca', '22', 'Aragón'), ('25', 'Illes Balears', '07', 'Islas Baleares'), ('26', 'Jaén', '23', 'Andalucía'), ('27', 'La Rioja', '26', 'La Rioja'), ('28', 'Las Palmas', '35', 'Canarias'), ('29', 'León', '24', 'Castilla y León'), ('30', 'Lleida', '25', 'Cataluña'), ('31', 'Lugo', '27', 'Galicia'), ('32', 'Madrid', '28', 'Comunidad de Madrid'), ('33', 'Melilla', '52', 'Melilla'), ('34', 'Murcia', '30', 'Región de Murcia'), ('35', 'Málaga', '29', 'Andalucía'), ('36', 'Navarra', '31', 'Navarra'), ('37', 'Ourense', '32', 'Galicia'), ('38', 'Palencia', '34', 'Castilla y León'), ('39', 'Pontevedra', '36', 'Galicia'), ('40', 'Salamanca', '37', 'Castilla y León'), ('41', 'Santa Cruz De Tenerife', '38', 'Canarias'), ('42', 'Segovia', '40', 'Castilla y León'), ('43', 'Sevilla', '41', 'Andalucía'), ('44', 'Soria', '42', 'Castilla y León'), ('45', 'Tarragona', '43', 'Cataluña'), ('46', 'Teruel', '44', 'Aragón'), ('47', 'Toledo', '45', 'Castilla-La Mancha'), ('48', 'Valladolid', '47', 'Castilla y León'), ('49', 'València/Valencia', '46', 'Comunidad Valenciana'), ('50', 'Zamora', '49', 'Castilla y León'), ('51', 'Zaragoza', '50', 'Aragón'), ('52', 'Ávila', '05', 'Castilla y León');
+-- 1. LIMPIEZA DE USUARIOS SEMILLA
+DELETE FROM auth.users WHERE raw_user_meta_data->>'is_seed' = 'true';
+
+-- 2. INSERTAR 150 USUARIOS
+INSERT INTO auth.users (id, email, instance_id, role, aud, email_confirmed_at, is_anonymous, is_sso_user, raw_user_meta_data)
+SELECT
+    gen_random_uuid(),
+    'user_seed_' || i || '@test.com',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    now(),
+    false,
+    false,
+    jsonb_build_object(
+        'full_name', (
+            (ARRAY['Miguel', 'Laura', 'Carlos', 'Elena', 'Javier', 'Sonia', 'Sergio', 'Marta', 'David', 'Lucía', 'Adrián', 'Carmen', 'Hugo', 'Sara', 'Álvaro', 'Paula', 'Raquel', 'Diego', 'Irene', 'Pablo'])[floor(random() * 20 + 1)] || ' ' ||
+            (ARRAY['García', 'López', 'Sanz', 'Jiménez', 'Ruiz', 'Ferrero', 'Castro', 'Méndez', 'Ortiz', 'Cano', 'Rivas', 'Vega', 'Marín', 'Peñas', 'Soler', 'Vila', 'Núñez', 'Rey', 'Gómez', 'Pérez'])[floor(random() * 20 + 1)]
+        ),
+        'user_name', 'user_seed_' || i,
+        'avatar_url', 'https://api.dicebear.com/7.x/avataaars/svg?seed=' || i,
+        'is_seed', true,
+        'temp_idx', i
+    )
+FROM generate_series(1, 150) s(i);
+
+-- 3. ACTUALIZAR PROVINCIAS (FORZANDO ALEATORIEDAD REAL)
+UPDATE public.profiles p
+SET provincia_id = (
+    SELECT id
+    FROM public.provincias
+    -- Aquí está el truco: al mencionar 'p.id', obligamos a Postgres a
+    -- re-ejecutar esta subconsulta para cada fila individualmente.
+    WHERE p.id IS NOT NULL
+    ORDER BY random()
+    LIMIT 1
+)
+WHERE p.id IN (
+    SELECT id FROM auth.users WHERE raw_user_meta_data->>'is_seed' = 'true'
+);
