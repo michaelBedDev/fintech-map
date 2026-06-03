@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ProfileWithProvince } from "@/types/DTOs/dtos";
-import { getFallbackAvatar, getSafeAvatarUrl } from "@/utils/map-utils";
+import { getFallbackAvatar } from "@/utils/map-utils";
 import { cn } from "@/lib/utils";
 
 interface MapOverlayProps {
@@ -56,7 +56,7 @@ export function MapOverlay({ provinceName, profiles }: MapOverlayProps) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Avatar className='h-7 w-7 border border-border group-hover:border-primary/50 transition-colors'>
-                        <AvatarImage src={getSafeAvatarUrl(profile.avatar_url, profile.full_name || "")} />
+                        <AvatarImage src={profile.avatar_url || undefined} />
                         <AvatarFallback className='text-[10px] bg-muted p-0' delayMs={profile.avatar_url ? 600 : 0}>
                           <img src={getFallbackAvatar(profile.full_name || "")} className='h-full w-full object-cover rounded-full' alt='default' />
                         </AvatarFallback>

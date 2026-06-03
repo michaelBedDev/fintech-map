@@ -4,7 +4,7 @@ import { useAuthSession } from "@/hooks/auth/queries";
 import { useLogout } from "@/hooks/auth/mutations";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getFallbackAvatar, getSafeAvatarUrl } from "@/utils/map-utils";
+import { getFallbackAvatar } from "@/utils/map-utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -51,7 +51,7 @@ export function UserMenu({ onOpenDelete }: UserMenuProps) {
             variant='ghost'
             className='relative h-9 flex items-center gap-2 rounded-full px-2'>
             <Avatar className='h-7 w-7'>
-              <AvatarImage src={getSafeAvatarUrl(user.avatarUrl, user.name)} />
+              <AvatarImage src={user.avatarUrl || undefined} />
               <AvatarFallback className='text-[10px] p-0' delayMs={user.avatarUrl ? 600 : 0}>
                 <img src={getFallbackAvatar(user.name)} className='h-full w-full object-cover rounded-full' alt='default' />
               </AvatarFallback>
