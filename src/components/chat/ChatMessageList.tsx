@@ -51,7 +51,7 @@ function MessageItem({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
     <div className={cn("flex gap-2", isOwn && "flex-row-reverse")}>
       <Avatar className='h-6 w-6 shrink-0 mt-0.5'>
         <AvatarImage src={msg.profiles?.avatar_url ?? undefined} />
-        <AvatarFallback className='text-[10px] p-0'>
+        <AvatarFallback className='text-[10px] p-0' delayMs={msg.profiles?.avatar_url ? 600 : 0}>
           <img src={getFallbackAvatar(authorName)} className='h-full w-full object-cover rounded-full' alt='default' />
         </AvatarFallback>
       </Avatar>

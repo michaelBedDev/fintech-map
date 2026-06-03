@@ -52,7 +52,7 @@ export function UserMenu({ onOpenDelete }: UserMenuProps) {
             className='relative h-9 flex items-center gap-2 rounded-full px-2'>
             <Avatar className='h-7 w-7'>
               <AvatarImage src={user.avatarUrl} alt={user.name} />
-              <AvatarFallback className='text-[10px] p-0'>
+              <AvatarFallback className='text-[10px] p-0' delayMs={user.avatarUrl ? 600 : 0}>
                 <img src={getFallbackAvatar(user.name)} className='h-full w-full object-cover rounded-full' alt='default' />
               </AvatarFallback>
             </Avatar>

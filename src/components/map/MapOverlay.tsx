@@ -36,7 +36,7 @@ export function MapOverlay({ provinceName, profiles }: MapOverlayProps) {
                     <TooltipTrigger asChild>
                       <Avatar className='h-7 w-7 border border-border group-hover:border-primary/50 transition-colors'>
                         <AvatarImage src={profile.avatar_url ?? undefined} />
-                        <AvatarFallback className='text-[10px] bg-muted p-0'>
+                        <AvatarFallback className='text-[10px] bg-muted p-0' delayMs={profile.avatar_url ? 600 : 0}>
                           <img src={getFallbackAvatar(profile.full_name || "")} className='h-full w-full object-cover rounded-full' alt='default' />
                         </AvatarFallback>
                       </Avatar>
