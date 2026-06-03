@@ -127,4 +127,18 @@ describe("getSafeAvatarUrl & getFallbackAvatar", () => {
     expect(result).toMatch(/^data:image\/svg\+xml,/);
     expect(result).toContain("D"); // "Default" -> "D"
   });
+
+  it("should sanitize accented initials to '?' to avoid malformed URI errors", () => {
+    const result = getFallbackAvatar("Álvaro");
+    expect(result).toMatch(/^data:image\/svg\+xml,/);
+    // Á is non-ASCII, must be replaced with ? to avoid encoding issues
+    expect(result).toContain(">?<");
+  });
+
+  it("should escape '#' in colors to '%23' for valid data URIs", () => {
+    const result = getFallbackAvatar("Carlos");
+    // '#' in color values must be escaped as %23 (fragment delimiter in URIs)
+    expect(result).not.toContain("#");
+    expect(result).toContain("%23");
+  });
 });

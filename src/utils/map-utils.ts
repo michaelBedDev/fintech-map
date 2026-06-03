@@ -70,8 +70,12 @@ export function getFallbackAvatar(seed: string): string {
   const hash = safeSeed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const color = FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
   const initial = safeSeed.charAt(0).toUpperCase();
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="${color}"/><text x="50" y="50" text-anchor="middle" dy=".36em" fill="#fff" font-size="42" font-family="system-ui,sans-serif" font-weight="600">${initial}</text></svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  // Sanitize to ASCII letter — accented chars (Á, É…) break URI encoding
+  const safeInitial = /^[A-Za-z0-9]$/.test(initial) ? initial : '?';
+  // Single-quoted SVG attributes avoid escaping issues in HTML contexts.
+  // Only '#' needs escaping in data: URIs (it's the fragment delimiter).
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='50' fill='${color}'/><text x='50' y='50' text-anchor='middle' dy='.36em' fill='white' font-size='42' font-family='sans-serif' font-weight='600'>${safeInitial}</text></svg>`;
+  return `data:image/svg+xml,${svg.replace(/#/g, '%23')}`;
 }
 
 export function getSafeAvatarUrl(avatarUrl: string | null, name: string): string {
@@ -84,9 +88,13 @@ export function createAvatarIcon(
   size = 28,
 ): L.DivIcon {
   const safeName = escapeHtml(name || "?");
-  const safeAvatarUrl = getSafeAvatarUrl(avatarUrl, name);
+  const imgSrc = avatarUrl
+    ? escapeHtml(avatarUrl)
+    : getFallbackAvatar(name);
   const fallbackUrl = getFallbackAvatar(name);
-  const html = `<img src="${escapeHtml(safeAvatarUrl)}" alt="${safeName}" class="avatar-marker" style="width:${size}px;height:${size}px;" onerror="this.onerror=null;this.src='${fallbackUrl}';" />`;
+  // Data URIs use single-quoted SVG attrs, so they're safe inside double-quoted HTML attrs.
+  // For onerror, wrap in double quotes since the data URI only contains single quotes.
+  const html = `<img src="${imgSrc}" alt="${safeName}" class="avatar-marker" style="width:${size}px;height:${size}px;" onerror="this.onerror=null;this.src=&quot;${fallbackUrl}&quot;;" />`;
 
   return L.divIcon({
     html,
